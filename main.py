@@ -59,6 +59,7 @@ class MySerializer(pytak.QueueWorker):
                     a_circles = a_circles[0]
                     circles.append(get_circle(base_url, circles_url, a_token, a_circles['id']))
                 for i in circles:
+                    name_circle = i['name']
                     temp_members = i['members']
                     for i2 in temp_members:
                         if i2['location'] == None:
@@ -66,8 +67,8 @@ class MySerializer(pytak.QueueWorker):
                         else:
                             loc = i2['location']
                         members[f"{i2['firstName']} {i2['lastName']}"] = {"lat":loc['latitude'],"lon":loc['longitude'],"battery":loc['battery'], "id":i2['id'], "phone": i2['loginPhone'][1:]}
-                for k, v in members.items():
-                    data = tak_memberUpdate(v['lat'], v['lon'], v['id'], k, v['battery'], v['phone'], poll_interval)
+                for name, data in members.items():
+                    data = tak_memberUpdate(data, name, name_circle, poll_interval)
                     await self.handle_data(data)
                 logger.info(f"Updated {len(members)} members positions! Checking in {int(poll_interval) // 60} minutes...")
                 await asyncio.sleep(int(poll_interval))
@@ -115,19 +116,19 @@ def get_circle(base_url, circle_url, access_token, circle_id):
     r = make_request(url=url, method='GET', authheader=authheader)
     return r
 
-def tak_memberUpdate(lat, lon, uuid, name, battery, phone, poll_interval):
+def tak_memberUpdate(data, name, name_circle, poll_interval):
     root = ET.Element("event")
     root.set("version", "2.0")
     root.set("type", "a-f-G-U-C")
-    root.set("uid", uuid)
+    root.set("uid", data['id'])
     root.set("how", "m-g")
     root.set("time", pytak.cot_time())
     root.set("start", pytak.cot_time())
     root.set("stale", pytak.cot_time(int(poll_interval)))
 
     point = ET.SubElement(root, 'point')
-    point.set('lat', str(lat))
-    point.set('lon', str(lon))
+    point.set('lat', str(data['lat']))
+    point.set('lon', str(data['lon']))
     point.set('hae', '250')
     point.set('ce', '9999999.0')
     point.set('le', '9999999.0')
@@ -141,11 +142,14 @@ def tak_memberUpdate(lat, lon, uuid, name, battery, phone, poll_interval):
     takv.set('platform', 'l360cot')
 
     status = ET.SubElement(detail, 'status')
-    status.set('battery', battery)
+    status.set('battery', data['battery'])
 
     group = ET.SubElement(detail, '__group')
     group.set('role', 'Team Member')
     group.set('role', 'Cyan')
+
+    remarks = ET.SubElement(detail, 'remarks')
+    remarks.text = f"Circle: {name_circle}"
 
     precisionlocation = ET.SubElement(detail, "precisionlocation")
     precisionlocation.set("altsrc", "GPS")
@@ -153,7 +157,7 @@ def tak_memberUpdate(lat, lon, uuid, name, battery, phone, poll_interval):
 
     contact = ET.SubElement(detail, "contact")
     contact.set("callsign", name)
-    contact.set("phone", phone)
+    contact.set("phone", data['phone'])
 
     return ET.tostring(root)
 
