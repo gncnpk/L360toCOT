@@ -76,8 +76,7 @@ class MySerializer(pytak.QueueWorker):
                             "lon": loc["longitude"],
                             "battery": loc["battery"],
                             "id": i2["id"],
-                            "phone": i2["loginPhone"][1:],
-                            "speed": loc["speed"]
+                            "phone": i2["loginPhone"][1:]
                         }
                 for name, data in members.items():
                     data = tak_memberUpdate(data, name, name_circle, poll_interval)
@@ -160,12 +159,6 @@ def tak_memberUpdate(data, name, name_circle, poll_interval):
 
     detail = ET.SubElement(root, "detail")
 
-    takv = ET.SubElement(detail, "takv")
-    takv.set("os", "33")
-    takv.set("version", "4.8.1.10")
-    takv.set("device", "l360cot")
-    takv.set("platform", "l360cot")
-
     status = ET.SubElement(detail, "status")
     status.set("battery", data["battery"])
 
@@ -183,9 +176,6 @@ def tak_memberUpdate(data, name, name_circle, poll_interval):
     contact = ET.SubElement(detail, "contact")
     contact.set("callsign", name)
     contact.set("phone", data["phone"])
-
-    track = ET.SubElement(detail, "track")
-    track.set("speed", data["speed"])
 
     return ET.tostring(root)
 
