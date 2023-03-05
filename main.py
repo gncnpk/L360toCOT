@@ -31,7 +31,7 @@ class MySerializer(pytak.QueueWorker):
         """
         Runs the loop for processing or generating pre-COT data.
         """
-        logger = logging.getLogger('citizentocot')
+        logger = logging.getLogger('l360tocot')
         logger.setLevel(logging.INFO)
         ch = logging.StreamHandler()
         formatter = logging.Formatter('%(asctime)s %(name)s %(levelname)s - %(message)s')
