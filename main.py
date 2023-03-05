@@ -14,12 +14,13 @@ from sys import platform
 import pytak
 import json
 
+
 class MySerializer(pytak.QueueWorker):
     """
     Defines how you process or generate your Cursor-On-Target Events.
     From there it adds the COT Events to a queue for TX to a COT_URL.
     """
-    
+
     async def handle_data(self, data):
         """
         Handles pre-COT data and serializes to COT Events, then puts on queue.
@@ -31,10 +32,12 @@ class MySerializer(pytak.QueueWorker):
         """
         Runs the loop for processing or generating pre-COT data.
         """
-        logger = logging.getLogger('l360tocot')
+        logger = logging.getLogger("l360tocot")
         logger.setLevel(logging.INFO)
         ch = logging.StreamHandler()
-        formatter = logging.Formatter('%(asctime)s %(name)s %(levelname)s - %(message)s')
+        formatter = logging.Formatter(
+            "%(asctime)s %(name)s %(levelname)s - %(message)s"
+        )
         ch.setFormatter(formatter)
         ch.setLevel(logging.INFO)
         logger.addHandler(ch)
@@ -48,7 +51,7 @@ class MySerializer(pytak.QueueWorker):
         a_token = authenticate(base_url, token_url, username, password, api_auth_token)
         while True:
             try:
-                poll_interval: int = int(self.config.get('POLL_INTERVAL'))
+                poll_interval: int = int(self.config.get("POLL_INTERVAL"))
                 members = {}
                 circles = []
                 a_circles = get_circles(base_url, circles_url, a_token)
@@ -57,98 +60,120 @@ class MySerializer(pytak.QueueWorker):
                         circles.append(get_circle(base_url, circles_url, a_token, i))
                 else:
                     a_circles = a_circles[0]
-                    circles.append(get_circle(base_url, circles_url, a_token, a_circles['id']))
+                    circles.append(
+                        get_circle(base_url, circles_url, a_token, a_circles["id"])
+                    )
                 for i in circles:
-                    name_circle = i['name']
-                    temp_members = i['members']
+                    name_circle = i["name"]
+                    temp_members = i["members"]
                     for i2 in temp_members:
-                        if i2['location'] == None:
+                        if i2["location"] == None:
                             continue
                         else:
-                            loc = i2['location']
-                        members[f"{i2['firstName']} {i2['lastName']}"] = {"lat":loc['latitude'],"lon":loc['longitude'],"battery":loc['battery'], "id":i2['id'], "phone": i2['loginPhone'][1:]}
+                            loc = i2["location"]
+                        members[f"{i2['firstName']} {i2['lastName']}"] = {
+                            "lat": loc["latitude"],
+                            "lon": loc["longitude"],
+                            "battery": loc["battery"],
+                            "id": i2["id"],
+                            "phone": i2["loginPhone"][1:],
+                            "speed": loc["speed"]
+                        }
                 for name, data in members.items():
                     data = tak_memberUpdate(data, name, name_circle, poll_interval)
                     await self.handle_data(data)
-                logger.info(f"Updated {len(members)} members positions! Checking in {int(poll_interval) // 60} minutes...")
+                logger.info(
+                    f"Updated {len(members)} members positions! Checking in {int(poll_interval) // 60} minutes..."
+                )
                 await asyncio.sleep(int(poll_interval))
             except:
                 raise Exception("Error detected! Shutting down to prevent API spam.")
 
 
-def make_request(url, params=None, method='GET', authheader=None):
-    headers = {'Accept': 'application/json'}
+def make_request(url, params=None, method="GET", authheader=None):
+    headers = {"Accept": "application/json"}
     if authheader:
-        headers.update({'Authorization': authheader, 'cache-control': "no-cache",})
+        headers.update(
+            {
+                "Authorization": authheader,
+                "cache-control": "no-cache",
+            }
+        )
 
-    if method == 'GET':
+    if method == "GET":
         r = requests.get(url, headers=headers)
-    elif method == 'POST':
+    elif method == "POST":
         r = requests.post(url, data=params, headers=headers)
 
     return r.json()
 
+
 def authenticate(base_url, token_url, username, password, authorization_token):
     url = base_url + token_url
     params = {
-        "grant_type":"password",
+        "grant_type": "password",
         "phone": username,
         "password": password,
-        "countryCode": 1
+        "countryCode": 1,
     }
 
-    r = make_request(url=url, params=params, method='POST', authheader="Basic " + authorization_token)
+    r = make_request(
+        url=url, params=params, method="POST", authheader="Basic " + authorization_token
+    )
     try:
-        access_token = r['access_token']
+        access_token = r["access_token"]
         return access_token
     except:
         return None
 
+
 def get_circles(base_url, circles_url, access_token):
     url = base_url + circles_url
     authheader = "bearer " + access_token
-    r = make_request(url=url, method='GET', authheader=authheader)
-    return r['circles']
+    r = make_request(url=url, method="GET", authheader=authheader)
+    return r["circles"]
+
 
 def get_circle(base_url, circle_url, access_token, circle_id):
     url = base_url + circle_url + circle_id
     authheader = "bearer " + access_token
-    r = make_request(url=url, method='GET', authheader=authheader)
+    r = make_request(url=url, method="GET", authheader=authheader)
     return r
+
 
 def tak_memberUpdate(data, name, name_circle, poll_interval):
     root = ET.Element("event")
     root.set("version", "2.0")
     root.set("type", "a-f-G-U-C")
-    root.set("uid", data['id'])
+    root.set("uid", data["id"])
     root.set("how", "m-g")
     root.set("time", pytak.cot_time())
     root.set("start", pytak.cot_time())
     root.set("stale", pytak.cot_time(int(poll_interval)))
 
-    point = ET.SubElement(root, 'point')
-    point.set('lat', str(data['lat']))
-    point.set('lon', str(data['lon']))
-    point.set('hae', '250')
-    point.set('ce', '9999999.0')
-    point.set('le', '9999999.0')
+    point = ET.SubElement(root, "point")
+    point.set("lat", str(data["lat"]))
+    point.set("lon", str(data["lon"]))
+    point.set("hae", "250")
+    point.set("ce", "9999999.0")
+    point.set("le", "9999999.0")
 
-    detail = ET.SubElement(root, 'detail')
+    detail = ET.SubElement(root, "detail")
 
-    takv = ET.SubElement(detail, 'takv')
-    takv.set('os', '33')
-    takv.set('version', '4.8.1.10')
-    takv.set('device', 'l360cot')
-    takv.set('platform', 'l360cot')
+    takv = ET.SubElement(detail, "takv")
+    takv.set("os", "33")
+    takv.set("version", "4.8.1.10")
+    takv.set("device", "l360cot")
+    takv.set("platform", "l360cot")
 
-    status = ET.SubElement(detail, 'status')
-    status.set('battery', data['battery'])
+    status = ET.SubElement(detail, "status")
+    status.set("battery", data["battery"])
 
-    group = ET.SubElement(detail, '__group')
-    group.set('role', 'Team Member')
-    group.set('role', 'Cyan')
+    group = ET.SubElement(detail, "__group")
+    group.set("role", "Team Member")
+    group.set("role", "Cyan")
 
-    remarks = ET.SubElement(detail, 'remarks')
+    remarks = ET.SubElement(detail, "remarks")
     remarks.text = f"Circle: {name_circle}"
 
     precisionlocation = ET.SubElement(detail, "precisionlocation")
@@ -157,9 +182,13 @@ def tak_memberUpdate(data, name, name_circle, poll_interval):
 
     contact = ET.SubElement(detail, "contact")
     contact.set("callsign", name)
-    contact.set("phone", data['phone'])
+    contact.set("phone", data["phone"])
+
+    track = ET.SubElement(detail, "track")
+    track.set("speed", data["speed"])
 
     return ET.tostring(root)
+
 
 async def main():
     """
@@ -168,8 +197,8 @@ async def main():
     """
 
     config = ConfigParser()
-    config.read('config.ini')
-    config = config['l360tocot']
+    config.read("config.ini")
+    config = config["l360tocot"]
     # Initializes worker queues and tasks.
     clitool = pytak.CLITool(config)
     await clitool.setup()
